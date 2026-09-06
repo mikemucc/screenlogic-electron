@@ -227,6 +227,14 @@ async function setIntellichlorIsActive(isActive, senderId) {
   return screenlogic.chlor.setIntellichlorIsActiveAsync(isActive, senderId);
 }
 
+function subscribeEquipmentState(callback) {
+  screenlogic.on('equipmentState', callback);
+}
+
+function unsubscribeEquipmentState(callback) {
+  screenlogic.removeListener('equipmentState', callback);
+}
+
 module.exports = {
   findLocalUnits,
   closeFinder,
@@ -275,4 +283,6 @@ module.exports = {
   setIntellichlorOutput,
   setIntellichlorIsActive,
   screenlogic,
+  subscribeEquipmentState,
+  unsubscribeEquipmentState,
 };

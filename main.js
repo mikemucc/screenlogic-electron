@@ -85,6 +85,15 @@ const handlers = {
   setIntellichlorIsActive: async (isActive, senderId) => screenlogicService.setIntellichlorIsActive(isActive, senderId),
 };
 
+ipcMain.on('screenlogic:subscribeEquipmentState', (event) => {
+  const listener = (state) => {
+    if (!event.sender.isDestroyed()) {
+      event.sender.send('screenlogic:equipmentStateUpdate', state);
+    }
+  };
+  screenlogicService.subscribeEquipmentState(listener);
+});
+
 Object.keys(handlers).forEach((name) => {
   ipcMain.handle(`screenlogic:${name}`, async (event, ...args) => {
     try {

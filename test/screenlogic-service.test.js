@@ -113,4 +113,23 @@ describe('screenlogic service wrapper', () => {
     expect(spy).toHaveBeenCalledWith(...args);
     expect(result).toBe('ok');
   });
+
+  test('subscribeEquipmentState adds listener to screenlogic', () => {
+    const callback = jest.fn();
+    const spy = jest.spyOn(ScreenLogic.screenlogic, 'on').mockReturnThis();
+    service.subscribeEquipmentState(callback);
+    expect(spy).toHaveBeenCalledWith('equipmentState', callback);
+  });
+
+  test('unsubscribeEquipmentState removes listener from screenlogic', () => {
+    const callback = jest.fn();
+    const spy = jest.spyOn(ScreenLogic.screenlogic, 'removeListener').mockReturnThis();
+    service.unsubscribeEquipmentState(callback);
+    expect(spy).toHaveBeenCalledWith('equipmentState', callback);
+  });
+
+  test('subscribeEquipmentState and unsubscribeEquipmentState are exported', () => {
+    expect(typeof service.subscribeEquipmentState).toBe('function');
+    expect(typeof service.unsubscribeEquipmentState).toBe('function');
+  });
 });

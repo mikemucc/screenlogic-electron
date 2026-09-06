@@ -17,7 +17,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
-    "test": "jest --runInBand",
+    "test": "jest --runInBand && node -e \"require('child_process').execSync('node --check renderer.js && node --check main.js && node --check preload.js && node --check scripts/generate-preload.js', {stdio:'inherit'})\"",
     "package": "electron-builder",
     "generate-preload": "node scripts/generate-preload.js"
   },

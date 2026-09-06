@@ -28,7 +28,10 @@ function CircuitToggle({ circuit, onToggle, bodyIndex, isDisabled }) {
 }
 
 function LightsCard({ lights, onLightCommand }) {
-  const lightsOn = lights.some(l => l.state);
+  const firstLight = lights[0];
+  const lightId = firstLight?.id;
+  const lightsOn = !!firstLight?.state;
+  const pending = !!firstLight?.pending;
 
   const colorLightButtons = [
     { text: "Set", command: 2 },
@@ -53,30 +56,28 @@ function LightsCard({ lights, onLightCommand }) {
     { text: "Purple", command: 17, color: "#d800ff" },
   ];
 
-  const firstLight = lights[0];
-  const lightId = firstLight?.id;
-
   return e(
     "div",
-    { className: "body-card" },
-    e(
-      "div",
-      { className: "body-card-header" },
-      e("div", { className: "body-icon" }, "\U0001F4A1"),
-      e(
+    { className: `body-card${lightsOn ? " is-on" : ""}` },
+e(
         "div",
-        { className: "body-info" },
-        e("h3", { className: "body-name" }, "Lights"),
-        e("span", { className: "body-temp-label" }, lightsOn ? "On" : "Off")
-      ),
+        { className: "body-card-header" },
+        e("div", { className: "body-icon" }, "\u{1F4A1}"),
+        e(
+          "div",
+          { className: "body-info" },
+          e("h3", { className: "body-name" }, "Lights")
+        ),
       e(
         "div",
         { className: "body-status" },
         e("button", {
-          className: `status-pill${lightsOn ? " status-heating" : " status-idle"}`,
-          onClick: () => onLightCommand(lightId, lightsOn ? 0 : 1),
-          title: lightsOn ? "Turn off lights" : "Turn on lights",
-        }, lightsOn ? "On" : "Off")
+          className: pending
+            ? "status-pill status-pending"
+            : `status-pill${lightsOn ? " status-on" : " status-off"}`,
+          onClick: pending ? undefined : () => onLightCommand(lightId, lightsOn ? 0 : 1),
+          title: pending ? "Changing..." : lightsOn ? "Turn off lights" : "Turn on lights",
+        }, pending ? "..." : lightsOn ? "On" : "Off")
       )
     ),
     e(
@@ -133,13 +134,12 @@ function LightsCard({ lights, onLightCommand }) {
 }
 
 function BodyCard({ body, onCircuitToggle, onHeaterChange, onHeatModeChange, onBodyToggle }) {
-  const { index, name, temp, setPoint, circuits, isHeating, heatMode, heatModes, isOn } = body;
+  const { index, name, temp, setPoint, circuits, isHeating, heatMode, heatModes, isOn, pending } = body;
   const icon = name.includes("Pool") ? "\u{1F3CA}" : "\u{2668}";
-  const heatModeName = heatModes.find((m) => m.value === heatMode)?.name ?? "Off";
 
   return e(
     "div",
-    { className: `body-card${isHeating ? " heating" : ""}` },
+    { className: `body-card${isHeating ? " heating" : ""}${isOn ? " is-on" : ""}` },
     e(
       "div",
       { className: "body-card-header" },
@@ -148,21 +148,18 @@ function BodyCard({ body, onCircuitToggle, onHeaterChange, onHeatModeChange, onB
         "div",
         { className: "body-info" },
         e("h3", { className: "body-name" }, name),
-        e(
-          "div",
-          { className: "body-temp-row" },
-          e("span", { className: "body-temp-value" }, temp ? (Math.round(temp * 10) / 10).toFixed(1) : "--", "\u00B0F"),
-          e("span", { className: "body-temp-label" }, "Current")
-        )
+        e("span", { className: "body-temp-inline" }, temp ? `${(Math.round(temp * 10) / 10).toFixed(1)}\u00B0F` : "--\u00B0F")
       ),
       e(
         "div",
         { className: "body-status" },
         e("button", {
-          className: `status-pill${isOn ? " status-heating" : " status-idle"}`,
-          onClick: () => onBodyToggle(index, !isOn),
-          title: isOn ? "Turn off" : "Turn on",
-        }, isOn ? "On" : "Off")
+          className: pending
+            ? "status-pill status-pending"
+            : `status-pill${isOn ? " status-on" : " status-off"}`,
+          onClick: pending ? undefined : () => onBodyToggle(index, !isOn),
+          title: pending ? "Changing..." : isOn ? "Turn off" : "Turn on",
+        }, pending ? "..." : isOn ? "On" : "Off")
       )
     ),
     circuits && circuits.length > 0 &&
@@ -227,8 +224,7 @@ function BodyCard({ body, onCircuitToggle, onHeaterChange, onHeatModeChange, onB
           },
           "+"
         )
-      ),
-      e("div", { className: "heater-mode-display" }, "Mode: ", e("strong", null, heatModeName))
+      )
     )
   );
 }
@@ -266,6 +262,9 @@ const App = () => {
   const [debugInfo, setDebugInfo] = useState("");
   const [config, setConfig] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [freezeMode, setFreezeMode] = useState(0);
+  const [controllerName, setControllerName] = useState("");
+  const [controllerIP, setControllerIP] = useState("");
 
   const configRef = useRef(null);
   const controllerConfigRef = useRef(null);
@@ -333,6 +332,7 @@ const App = () => {
           heatMode: body.heatMode || 0,
           isHeating,
           isOn: idx === 0,
+          pending: false,
           heatModes,
           circuits: [],
         };
@@ -416,6 +416,8 @@ const App = () => {
       setDebugInfo(`Found ${units.length} unit(s). Connecting\u2026`);
 
       const unit = units[0];
+      setControllerName(unit.gatewayName || "ScreenLogic");
+      setControllerIP(`${unit.address}:${unit.port}`);
       await window.screenlogic.initUnit(unit);
       await window.screenlogic.connect();
       setConnected(true);
@@ -447,19 +449,54 @@ const App = () => {
     mountedRef.current = true;
     initializeConnection();
 
-    const interval = setInterval(() => {
-      if (configRef.current) {
-        loadEquipmentData(configRef.current).catch((err) =>
-          console.error("Poll error:", err)
-        );
-      }
-    }, POLL_INTERVAL_MS);
+    const unsubscribe = window.screenlogic.onEquipmentStateUpdate((state) => {
+      if (!state || !mountedRef.current) return;
+      if (state.freezeMode !== undefined) setFreezeMode(state.freezeMode);
+      if (!state.bodies) return;
+
+      setBodies((prev) => {
+        if (!prev.length) return prev;
+        return prev.map((body, idx) => {
+          const serverBody = state.bodies[idx];
+          if (!serverBody) return body;
+          const isHeating = serverBody.setPoint > serverBody.currentTemp && serverBody.heatMode > 0;
+          const circuitData = body.circuitData;
+          const isOn = circuitData
+            ? !!state.circuitArray?.find((c) => c.id === circuitData.id)?.state
+            : body.isOn;
+          return {
+            ...body,
+            temp: serverBody.currentTemp || body.temp,
+            setPoint: serverBody.setPoint || body.setPoint,
+            heatMode: serverBody.heatMode || body.heatMode,
+            isHeating,
+            isOn,
+            pending: false,
+          };
+        });
+      });
+
+      setLights((prev) => {
+        if (!prev.length) return prev;
+        return prev.map((light) => {
+          const sc = state.circuitArray?.find((c) => c.id === light.id);
+          return sc ? { ...light, state: !!sc.state, color: sc.colorSet } : light;
+        });
+      });
+
+      setFeatures((prev) => {
+        return prev.map((feat) => {
+          const sc = state.circuitArray?.find((c) => c.id === feat.id);
+          return sc ? { ...feat, state: !!sc.state } : feat;
+        });
+      });
+    });
 
     return () => {
       mountedRef.current = false;
-      clearInterval(interval);
+      unsubscribe();
     };
-  }, [initializeConnection, loadEquipmentData]);
+  }, [initializeConnection]);
 
   const handleCircuitToggle = useCallback(async (circuitId, bodyIndex) => {
     try {
@@ -566,35 +603,52 @@ const App = () => {
     }
   }, []);
 
-  const handleLightCommand = useCallback(async (circuitId, command, color) => {
+  const handleLightCommand = useCallback(async (circuitId, command) => {
     try {
-      await window.screenlogic.sendLightCommand({ circuitId, command, color }, 0);
-      const state = await window.screenlogic.getEquipmentState(0);
-      if (state && state.circuitArray) {
-        setBodies((prev) =>
-          prev.map((body) => ({
-            ...body,
-            circuits: body.circuits.map((c) => {
-              const sc = state.circuitArray[c.id];
-              return sc ? { ...c, state: sc.state, color: sc.colorSet } : c;
-            }),
-            features: body.features.map((c) => {
-              const sc = state.circuitArray[c.id];
-              return sc ? { ...c, state: sc.state, color: sc.colorSet } : c;
-            }),
-          }))
-        );
-      }
+      const newState = command === 1;
+      setLights((prev) =>
+        prev.map((light) =>
+          light.id === circuitId ? { ...light, state: newState, pending: true } : light
+        )
+      );
+      await window.screenlogic.sendLightCommand(command, 0);
+      await new Promise((r) => setTimeout(r, 1200));
+      setLights((prev) =>
+        prev.map((light) =>
+          light.id === circuitId ? { ...light, pending: false } : light
+        )
+      );
     } catch (err) {
       console.error("Error sending light command:", err);
+      setLights((prev) =>
+        prev.map((light) =>
+          light.id === circuitId ? { ...light, pending: false } : light
+        )
+      );
     }
   }, []);
 
-const handleBodyToggle = useCallback(async (bodyIndex, isOn) => {
+  const handleBodyToggle = useCallback(async (bodyIndex, isOn) => {
     try {
       if (!isOn) {
         setBodies((prev) =>
-          prev.map((body, idx) => (idx === bodyIndex ? { ...body, isOn: false } : body))
+          prev.map((body, idx) =>
+            idx === bodyIndex ? { ...body, isOn: false, pending: true } : body
+          )
+        );
+        const body = bodies[bodyIndex];
+        if (body && body.circuitData) {
+          try {
+            await window.screenlogic.setCircuitState(body.circuitData.id, 0, 0);
+          } catch (e) {
+            console.warn(`Failed to turn off body ${bodyIndex}:`, e);
+          }
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+        setBodies((prev) =>
+          prev.map((body, idx) =>
+            idx === bodyIndex ? { ...body, pending: false } : body
+          )
         );
         return;
       }
@@ -606,17 +660,41 @@ const handleBodyToggle = useCallback(async (bodyIndex, isOn) => {
       }
 
       setBodies((prev) =>
-        prev.map((body, idx) => ({
-          ...body,
-          isOn: idx === bodyIndex,
-        }))
+        prev.map((b, idx) =>
+          idx === bodyIndex ? { ...b, isOn: true, pending: true } : b
+        )
       );
 
       try {
         await window.screenlogic.setCircuitState(body.circuitData.id, 1, 0);
       } catch (e) {
         console.warn(`Failed to turn on body ${bodyIndex}:`, e);
+        setBodies((prev) =>
+          prev.map((b, idx) =>
+            idx === bodyIndex ? { ...b, pending: false } : b
+          )
+        );
+        return;
       }
+
+      await new Promise((r) => setTimeout(r, 1000));
+
+      const otherIdx = bodyIndex === 0 ? 1 : 0;
+      const otherBody = bodies[otherIdx];
+
+      if (otherBody && otherBody.isOn && otherBody.circuitData) {
+        try {
+          await window.screenlogic.setCircuitState(otherBody.circuitData.id, 0, 0);
+        } catch (e) {
+          console.warn(`Failed to turn off body ${otherIdx}:`, e);
+        }
+      }
+
+      setBodies((prev) =>
+        prev.map((b, idx) =>
+          idx === bodyIndex ? { ...b, isOn: true, pending: false } : { ...b, isOn: false }
+        )
+      );
     } catch (err) {
       console.error("Error toggling body:", err);
     }
@@ -647,12 +725,19 @@ const handleBodyToggle = useCallback(async (bodyIndex, isOn) => {
       e(
         "div",
         { className: "header-brand" },
-        e("span", { className: "header-title" }, "Pool Control"),
-        e("span", { className: "header-subtitle" }, "ScreenLogic")
+        e(
+          "div",
+          { className: "header-brand-row" },
+          e("span", { className: "header-title" }, "ScreenLogic"),
+          e("span", { className: "header-info-icon", "data-tooltip": controllerName }, "i")
+        ),
+        e("span", { className: "header-ip" }, controllerIP)
       ),
       e(
         "div",
         { className: "header-stats" },
+        freezeMode > 0 &&
+          e("span", { className: "header-mode-icon freeze-icon", title: "Freeze Protect Active" }, "\u2744\uFE0F"),
         e(
           "div",
           { className: "header-stat" },
@@ -681,25 +766,29 @@ const handleBodyToggle = useCallback(async (bodyIndex, isOn) => {
         })
       )
     ),
-    lights && lights.length > 0 &&
-      e(LightsCard, {
-        lights,
-        onLightCommand: handleLightCommand,
-      }),
-    features && features.length > 0 &&
-      e("div", { className: "body-card" },
-        e("div", { className: "body-card-header" },
-          e("div", { className: "body-icon" }, "\u2699"),
-          e("div", { className: "body-info" },
-            e("h3", { className: "body-name" }, "Features")
+    (lights && lights.length > 0) || (features && features.length > 0) ?
+      e("div", { className: "lights-features-row" },
+        lights && lights.length > 0 &&
+          e(LightsCard, {
+            lights,
+            onLightCommand: handleLightCommand,
+          }),
+        features && features.length > 0 &&
+          e("div", { className: "body-card features-card" },
+            e("div", { className: "body-card-header" },
+              e("div", { className: "body-icon" }, "\u2699"),
+              e("div", { className: "body-info" },
+                e("h3", { className: "body-name" }, "Features")
+              )
+            ),
+            e("div", { className: "circuits-section" },
+              e("div", { className: "circuits-list" },
+                features.map((circuit) => e(CircuitToggle, { circuit, onToggle: handleCircuitToggle, bodyIndex: -1 }))
+              )
+            )
           )
-        ),
-        e("div", { className: "circuits-section" },
-          e("div", { className: "circuits-list" },
-            features.map((circuit) => e(CircuitToggle, { circuit, onToggle: handleCircuitToggle, bodyIndex: -1 }))
-          )
-        )
-      )
+      ) :
+      null
   );
 };
 

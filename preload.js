@@ -51,4 +51,10 @@ contextBridge.exposeInMainWorld('screenlogic', {
   getIntellichlorConfig: (senderId) => invoke('screenlogic:getIntellichlorConfig', senderId),
   setIntellichlorOutput: (poolOutput, spaOutput, senderId) => invoke('screenlogic:setIntellichlorOutput', poolOutput, spaOutput, senderId),
   setIntellichlorIsActive: (isActive, senderId) => invoke('screenlogic:setIntellichlorIsActive', isActive, senderId),
+  onEquipmentStateUpdate: (callback) => {
+    const handler = (event, state) => callback(state);
+    ipcRenderer.on('screenlogic:equipmentStateUpdate', handler);
+    ipcRenderer.send('screenlogic:subscribeEquipmentState');
+    return () => ipcRenderer.removeListener('screenlogic:equipmentStateUpdate', handler);
+  },
 });
