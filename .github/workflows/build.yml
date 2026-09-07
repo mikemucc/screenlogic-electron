@@ -8,8 +8,33 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate preload script
+        run: npm run generate-preload
+
+      - name: Run tests
+        run: npm test
+
   build:
     name: Build (${{ matrix.os }})
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -35,9 +60,6 @@ jobs:
 
       - name: Generate preload script
         run: npm run generate-preload
-
-      - name: Run tests
-        run: npm test
 
       - name: Build (macOS)
         if: matrix.os == 'macos-latest'
