@@ -887,6 +887,124 @@
       outline-offset: 2px;
     }
 
+    /* ── Cleaner Standby (pending) ── */
+    .circuit-toggle.pending .toggle-switch.active {
+      background: var(--orange);
+      animation: pulse-pending 1.2s ease-in-out infinite;
+    }
+
+    .circuit-toggle.pending {
+      border-color: rgba(243, 156, 18, 0.4);
+      background: rgba(243, 156, 18, 0.08);
+    }
+
+    .circuit-toggle.pending:hover {
+      background: rgba(243, 156, 18, 0.14);
+      border-color: rgba(243, 156, 18, 0.6);
+    }
+
+    /* ── Header Standby Indicator ── */
+    .header-standby-wrapper {
+      position: relative;
+      align-self: center;
+    }
+
+    .header-standby-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      line-height: 0;
+      color: var(--orange);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition-fast), transform var(--transition-fast);
+      position: relative;
+    }
+
+    .header-standby-icon svg {
+      display: block;
+      opacity: 0.9;
+    }
+
+    .header-standby-icon:hover {
+      background: rgba(243, 156, 18, 0.15);
+      transform: scale(1.05);
+    }
+
+    .header-standby-icon:hover svg {
+      opacity: 1;
+    }
+
+    .header-standby-icon:focus-visible {
+      outline: 2px solid var(--orange);
+      outline-offset: 2px;
+    }
+
+    .header-standby-icon::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #222;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      white-space: nowrap;
+      z-index: 100;
+      border: 1px solid #444;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-fast);
+    }
+
+    .header-standby-icon:hover::after {
+      opacity: 1;
+    }
+
+    .header-standby-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-card-hover);
+      min-width: 180px;
+      z-index: 200;
+      overflow: hidden;
+    }
+
+    .header-standby-menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .header-standby-menu-item:hover {
+      background: var(--orange);
+      color: #fff;
+    }
+
+    .header-standby-menu-item:focus-visible {
+      outline: 2px solid var(--orange);
+      outline-offset: -2px;
+    }
+
     /* ── Disabled Section ── */
     .disabled-section {
       opacity: 0.5;

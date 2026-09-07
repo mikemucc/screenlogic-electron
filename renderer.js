@@ -4,13 +4,14 @@ const { useEffect, useState, useRef, useCallback } = React;
 const e = React.createElement;
 
 const POLL_INTERVAL_MS = 10000;
+const CLEANER_STANDBY_POLL_MS = 30000;
 
-function CircuitToggle({ circuit, onToggle, bodyIndex, isDisabled }) {
+function CircuitToggle({ circuit, onToggle, bodyIndex, isDisabled, isPending }) {
   return e(
     "div",
     {
       key: circuit.id,
-      className: `circuit-toggle${circuit.state ? " active" : ""}${isDisabled ? " disabled" : ""}`,
+      className: `circuit-toggle${circuit.state ? " active" : ""}${isDisabled ? " disabled" : ""}${isPending ? " pending" : ""}`,
       onClick: isDisabled ? undefined : () => onToggle(circuit.id, bodyIndex),
       role: "switch",
       "aria-checked": circuit.state ? "true" : "false",
@@ -20,7 +21,7 @@ function CircuitToggle({ circuit, onToggle, bodyIndex, isDisabled }) {
     },
     e(
       "div",
-      { className: `toggle-switch${circuit.state ? " active" : ""}${isDisabled ? " disabled" : ""}` },
+      { className: `toggle-switch${circuit.state ? " active" : ""}${isDisabled ? " disabled" : ""}${isPending ? " pending" : ""}` },
       e("div", { className: "toggle-knob" })
     ),
     e("span", { className: `circuit-name${isDisabled ? " disabled" : ""}` }, circuit.name, isDisabled && e("span", { className: "disabled-badge" }, "Disabled"))
@@ -137,7 +138,7 @@ e(
   );
 }
 
-function BodyCard({ body, onCircuitToggle, onHeaterChange, onHeatModeChange, onBodyToggle }) {
+function BodyCard({ body, onCircuitToggle, onHeaterChange, onHeatModeChange, onBodyToggle, pendingCircuitId }) {
   const { index, name, temp, setPoint, circuits, isHeating, heatMode, heatModes, isOn, pending } = body;
   const icon = name.includes("Pool") ? "\u{1F3CA}" : "\u{2668}";
 
@@ -170,7 +171,7 @@ circuits && circuits.length > 0 &&
         e(
           "div",
           { className: "circuits-list" },
-          circuits.map((circuit) => e(CircuitToggle, { circuit, onToggle: onCircuitToggle, bodyIndex: index }))
+          circuits.map((circuit) => e(CircuitToggle, { circuit, onToggle: onCircuitToggle, bodyIndex: index, isPending: circuit.id === pendingCircuitId }))
         ),
     e(
       "div",
@@ -256,6 +257,11 @@ const App = () => {
   const [bodies, setBodies] = useState([]);
   const [features, setFeatures] = useState([]);
   const [lights, setLights] = useState([]);
+  const [cleanerId, setCleanerId] = useState(null);
+  const [cleanerStandby, setCleanerStandby] = useState(false);
+  const [showCleanerMenu, setShowCleanerMenu] = useState(false);
+  const cleanerMenuRef = useRef(null);
+  const cleanerStandbyConfirmedRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState("");
@@ -343,6 +349,7 @@ const App = () => {
       const featuresData = [];
       const lightsData = [];
       const unknownData = [];
+      let detectedCleanerId = null;
 
       if (state.circuitArray && Array.isArray(state.circuitArray)) {
         state.circuitArray.forEach((circuit) => {
@@ -352,6 +359,10 @@ const App = () => {
           const functionVal = circuitFunctionMap[circuitId];
 
           if (interfaceVal === 5) return;
+
+          const lowerName = (defName || '').toLowerCase();
+          const isCleaner = lowerName.includes('cleaner') || lowerName.includes('vacuum') || interfaceVal === 6;
+          if (isCleaner) detectedCleanerId = circuitId;
 
           const circuitData = {
             id: circuitId,
@@ -372,7 +383,9 @@ const App = () => {
             return;
           }
 
-          if (interfaceVal === 2) {
+          if (isCleaner) {
+            bodiesData[0].circuits.push(circuitData);
+          } else if (interfaceVal === 2) {
             featuresData.push(circuitData);
           } else if (interfaceVal === 3 || interfaceVal === 4) {
             lightsData.push(circuitData);
@@ -391,6 +404,7 @@ const App = () => {
       setBodies(bodiesData);
       setLights(lightsData);
       setFeatures(featuresData);
+      setCleanerId(detectedCleanerId);
       bodiesRef.current = bodiesData;
       featuresRef.current = featuresData;
       setOutsideTemp(state.airTemp ?? null);
@@ -486,6 +500,7 @@ const App = () => {
     const unsubscribe = window.screenlogic.onEquipmentStateUpdate((state) => {
       if (!state || !mountedRef.current) return;
       if (state.freezeMode !== undefined) setFreezeMode(state.freezeMode);
+      if (state.airTemp !== undefined) setOutsideTemp(state.airTemp ?? null);
       if (!state.bodies) return;
 
       setBodies((prev) => {
@@ -524,17 +539,103 @@ const App = () => {
           return sc ? { ...feat, state: !!sc.state } : feat;
         });
       });
+
+      if (state.cleanerDelay !== undefined) {
+        setCleanerStandby(state.cleanerDelay > 0);
+        cleanerStandbyConfirmedRef.current = state.cleanerDelay > 0;
+      }
+
+      setBodies((prev) => {
+        if (!prev.length || cleanerId == null) return prev;
+        const sc = state.circuitArray?.find((c) => c.id === cleanerId);
+        if (!sc) return prev;
+        return prev.map((b) => ({
+          ...b,
+          circuits: b.circuits.map((c) => c.id === cleanerId ? { ...c, state: !!sc.state } : c),
+        }));
+      });
     });
 
     return () => {
       mountedRef.current = false;
       unsubscribe();
     };
-  }, [initializeConnection]);
+  }, [initializeConnection, cleanerId]);
+
+  useEffect(() => {
+    if (!cleanerStandby || !cleanerStandbyConfirmedRef.current) return undefined;
+    const interval = setInterval(async () => {
+      const state = await window.screenlogic.getEquipmentState(0).catch(() => null);
+      if (!state || state.cleanerDelay === undefined) return;
+      setCleanerStandby(state.cleanerDelay > 0);
+    }, CLEANER_STANDBY_POLL_MS);
+    return () => clearInterval(interval);
+  }, [cleanerStandby]);
 
   const handleCircuitToggle = useCallback(async (circuitId, bodyIndex) => {
     const currentFeatures = featuresRef.current;
     const currentBodies = bodiesRef.current;
+
+    if (cleanerId === circuitId) {
+      const body = bodyIndex >= 0 ? currentBodies[bodyIndex] : null;
+      const circuit = body && body.circuits.find((c) => c.id === circuitId);
+      if (!circuit) return;
+
+      if (!circuit.state) {
+        setBodies((prev) =>
+          prev.map((b, idx) =>
+            idx === bodyIndex
+              ? { ...b, circuits: b.circuits.map((c) => c.id === circuitId ? { ...c, state: true } : c) }
+              : b
+          )
+        );
+        setCleanerStandby(true);
+        try {
+          await window.screenlogic.setCircuitState(circuitId, 1, 0);
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const state = await window.screenlogic.getEquipmentState(0).catch(() => null);
+            if (state) {
+              setCleanerStandby(!!state.cleanerDelay);
+              cleanerStandbyConfirmedRef.current = state.cleanerDelay > 0;
+              if (state.circuitArray) {
+                setBodies((prev) =>
+                  prev.map((b, idx) =>
+                    idx === bodyIndex
+                      ? { ...b, circuits: b.circuits.map((c) => {
+                          const sc = state.circuitArray.find((x) => x.id === c.id);
+                          return sc ? { ...c, state: !!sc.state, color: sc.colorSet } : c;
+                        }) }
+                      : b
+                  )
+                );
+              }
+              if (state.cleanerDelay > 0) break;
+            }
+            await new Promise((r) => setTimeout(r, 400));
+          }
+        } catch (err) {
+          console.error("Error turning on cleaner:", err);
+        }
+      } else {
+        setBodies((prev) =>
+          prev.map((b, idx) =>
+            idx === bodyIndex
+              ? { ...b, circuits: b.circuits.map((c) => c.id === circuitId ? { ...c, state: false } : c) }
+              : b
+          )
+        );
+        try {
+          if (cleanerStandby) {
+            await window.screenlogic.cancelDelay(0);
+          }
+          await window.screenlogic.setCircuitState(circuitId, 0, 0);
+        } catch (err) {
+          console.error("Error turning off cleaner:", err);
+        }
+        setCleanerStandby(false);
+      }
+      return;
+    }
 
     let newState = false;
     if (bodyIndex === -1) {
@@ -611,7 +712,7 @@ const App = () => {
         );
       }
     }
-  }, []);
+  }, [cleanerId, cleanerStandby]);
 
   const handleHeaterChange = useCallback(async (bodyIndex, temp) => {
     try {
@@ -741,6 +842,27 @@ const App = () => {
     }
   }, []);
 
+  const handleStartCleanerNow = useCallback(async () => {
+    setShowCleanerMenu(false);
+    try {
+      await window.screenlogic.cancelDelay(0);
+      setCleanerStandby(false);
+    } catch (err) {
+      console.error("Error canceling cleaner delay:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showCleanerMenu) return undefined;
+    const handleClickOutside = (evt) => {
+      if (cleanerMenuRef.current && !cleanerMenuRef.current.contains(evt.target)) {
+        setShowCleanerMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showCleanerMenu]);
+
     if (loading) {
     return e("div", { className: "app-shell" }, e(LoadingView, { message: debugInfo }));
   }
@@ -777,6 +899,35 @@ const App = () => {
       e(
         "div",
         { className: "header-stats" },
+        cleanerStandby &&
+          e("div",
+            { className: "header-standby-wrapper", ref: cleanerMenuRef },
+            e("button",
+              {
+                className: "header-standby-icon",
+                "data-tooltip": "Cleaner on Standby",
+                onClick: () => setShowCleanerMenu((v) => !v),
+                "aria-label": "Cleaner on Standby",
+                title: "Cleaner on Standby",
+              },
+              e("svg",
+                { viewBox: "0 0 24 24", width: "22", height: "22", "aria-hidden": "true" },
+                e("circle", { cx: "12", cy: "12", r: "8", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }),
+                e("path", { d: "M12 7.5V12l3 1.8", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" })
+              )
+            ),
+            showCleanerMenu &&
+              e("div",
+                { className: "header-standby-menu" },
+                e("button",
+                  {
+                    className: "header-standby-menu-item",
+                    onClick: handleStartCleanerNow,
+                  },
+                  "Start Cleaner Now"
+                )
+              )
+          ),
         freezeMode > 0 &&
           e("span", { className: "header-mode-icon freeze-icon", title: "Freeze Protect Active" }, "\u2744\uFE0F"),
         pump &&
@@ -815,6 +966,7 @@ const App = () => {
           onHeaterChange: handleHeaterChange,
           onHeatModeChange: handleHeatModeChange,
           onBodyToggle: handleBodyToggle,
+          pendingCircuitId: cleanerStandby ? cleanerId : null,
         })
       )
     ),
