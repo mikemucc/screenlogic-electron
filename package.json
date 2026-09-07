@@ -38,7 +38,8 @@
     ],
     "directories": {
       "buildResources": "build"
-    }
+    },
+    "icon": "build/icon.png"
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true,

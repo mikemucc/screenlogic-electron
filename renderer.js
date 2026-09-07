@@ -777,25 +777,25 @@ const App = () => {
       e(
         "div",
         { className: "header-stats" },
+        freezeMode > 0 &&
+          e("span", { className: "header-mode-icon freeze-icon", title: "Freeze Protect Active" }, "\u2744\uFE0F"),
         pump &&
           e(
             "div",
             { className: "header-stat header-pump" },
-            e("div", { className: "header-pump-row" },
-              e("span", { className: "header-pump-label" }, "RPM"),
-              e("span", { className: "header-pump-value" }, pump.pumpRPMs.toLocaleString())
+            e("div", { className: "header-pump-rows" },
+              e("div", { className: "header-pump-row" },
+                e("span", { className: "header-pump-value" }, pump.pumpRPMs.toLocaleString()),
+                e("span", { className: "header-pump-label" }, "RPM")
+              ),
+              e("div", { className: "header-pump-row" },
+                e("span", { className: "header-pump-value" }, pump.pumpGPMs),
+                e("span", { className: "header-pump-label" }, "GPM")
+              )
             ),
-            e("div", { className: "header-pump-row" },
-              e("span", { className: "header-pump-label" }, "GPM"),
-              e("span", { className: "header-pump-value" }, pump.pumpGPMs)
-            ),
-            e("div", { className: "header-pump-row" },
-              e("span", { className: "header-pump-label" }, "Pump")
-            )
+            e("span", { className: `header-pump-icon${(pump.pumpRPMs > 0 || pump.pumpGPMs > 0) ? " pump-on" : " pump-off"}`, title: "Pump" })
           ),
         e("div", { className: "header-divider" }),
-        freezeMode > 0 &&
-          e("span", { className: "header-mode-icon freeze-icon", title: "Freeze Protect Active" }, "\u2744\uFE0F"),
         e(
           "div",
           { className: "header-stat" },
