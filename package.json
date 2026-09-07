@@ -18,8 +18,11 @@
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
     "test": "jest --runInBand && node -e \"require('child_process').execSync('node --check renderer.js && node --check main.js && node --check preload.js && node --check scripts/generate-preload.js', {stdio:'inherit'})\"",
+    "generate-preload": "node scripts/generate-preload.js",
     "package": "electron-builder",
-    "generate-preload": "node scripts/generate-preload.js"
+    "package:mac": "electron-builder --mac",
+    "package:win": "electron-builder --win",
+    "package:linux": "electron-builder --linux"
   },
   "dependencies": {
     "node-screenlogic": "^2.1.1",
@@ -33,13 +36,38 @@
   },
   "build": {
     "appId": "com.screenlogic.electron",
+    "productName": "ScreenLogic",
     "files": [
-      "**/*"
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html"
     ],
     "directories": {
-      "buildResources": "build"
+      "buildResources": "build",
+      "output": "dist"
     },
-    "icon": "build/icon.png"
+    "icon": "build/icon.png",
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "Utility",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true,
