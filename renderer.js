@@ -264,6 +264,7 @@ const App = () => {
   const [freezeMode, setFreezeMode] = useState(0);
   const [controllerName, setControllerName] = useState("");
   const [controllerIP, setControllerIP] = useState("");
+  const [pump, setPump] = useState(null);
 
   const configRef = useRef(null);
   const controllerConfigRef = useRef(null);
@@ -404,6 +405,19 @@ const App = () => {
     }
   }, [getHeatModes]);
 
+  const loadPumpStatus = useCallback(async () => {
+    if (!mountedRef.current) return;
+    const cfg = configRef.current;
+    if (!cfg || !Array.isArray(cfg.pumps) || cfg.pumps.length === 0) return;
+    try {
+      const status = await window.screenlogic.getPumpStatus(1, 0);
+      if (!mountedRef.current) return;
+      setPump(status);
+    } catch (err) {
+      console.error("Error loading pump status:", err);
+    }
+  }, []);
+
   useEffect(() => {
     bodiesRef.current = bodies;
   }, [bodies]);
@@ -447,6 +461,7 @@ const App = () => {
       }
 
       await loadEquipmentData(cfg);
+      loadPumpStatus();
     } catch (err) {
       console.error("Connection error:", err);
       setConnected(false);
@@ -454,7 +469,15 @@ const App = () => {
       setDebugInfo("");
       setLoading(false);
     }
-  }, [loadEquipmentData]);
+  }, [loadEquipmentData, loadPumpStatus]);
+
+  useEffect(() => {
+    if (!pump) return undefined;
+    const interval = setInterval(() => {
+      loadPumpStatus();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [pump, loadPumpStatus]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -754,6 +777,23 @@ const App = () => {
       e(
         "div",
         { className: "header-stats" },
+        pump &&
+          e(
+            "div",
+            { className: "header-stat header-pump" },
+            e("div", { className: "header-pump-row" },
+              e("span", { className: "header-pump-label" }, "RPM"),
+              e("span", { className: "header-pump-value" }, pump.pumpRPMs.toLocaleString())
+            ),
+            e("div", { className: "header-pump-row" },
+              e("span", { className: "header-pump-label" }, "GPM"),
+              e("span", { className: "header-pump-value" }, pump.pumpGPMs)
+            ),
+            e("div", { className: "header-pump-row" },
+              e("span", { className: "header-pump-label" }, "Pump")
+            )
+          ),
+        e("div", { className: "header-divider" }),
         freezeMode > 0 &&
           e("span", { className: "header-mode-icon freeze-icon", title: "Freeze Protect Active" }, "\u2744\uFE0F"),
         e(
@@ -761,12 +801,6 @@ const App = () => {
           { className: "header-stat" },
           e("span", { className: "header-stat-value" }, outsideTemp != null ? `${Math.round(outsideTemp)}\u00B0F` : "--\u00B0F"),
           e("span", { className: "header-stat-label" }, "Outside")
-        ),
-        e(
-          "div",
-          { className: "header-stat" },
-          e("span", { className: `header-stat-value ${connected ? "text-ok" : "text-err"}` }, connected ? "Online" : "Offline"),
-          e("span", { className: "header-stat-label" }, "Controller")
         )
       )
     ),

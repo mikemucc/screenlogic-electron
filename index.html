@@ -191,6 +191,36 @@
     .text-ok { color: var(--green); }
     .text-err { color: var(--red); }
 
+    .header-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .header-pump {
+      gap: 2px;
+    }
+
+    .header-pump-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.65rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .header-pump-label {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.6rem;
+    }
+
+    .header-pump-value {
+      color: var(--text-primary);
+    }
+
     /* ── Bodies Grid ── */
     .bodies-grid {
       display: grid;
