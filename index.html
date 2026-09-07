@@ -63,7 +63,7 @@
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 28px;
+      gap: 16px;
     }
 
     /* ── Header ── */
@@ -71,7 +71,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px 28px;
+      padding: 12px 20px;
       background: var(--bg-secondary);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border);
@@ -201,7 +201,7 @@
     /* ── Lights + Features Row ── */
 .lights-features-row {
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 24px;
     }
 
@@ -219,10 +219,10 @@
     .body-card {
       background: var(--bg-card);
       border-radius: var(--radius-lg);
-      padding: 28px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 22px;
+      gap: 16px;
       border: 1px solid var(--border);
       box-shadow: var(--shadow-card);
       transition: box-shadow var(--transition-med), border-color var(--transition-med);
@@ -718,34 +718,46 @@
       border-color: var(--green);
       color: #fff;
     }
+.light-section {
+      margin-top: 8px;
+    }
 
-    .light-section {
-      margin-top: 20px;
+    .light-section-combined {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .light-sub-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .light-section-title {
-      font-size: 0.85rem;
+      font-size: 0.7rem;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin: 0 0 12px 0;
+      margin: 0 0 6px 0;
     }
 
     .light-btn-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 4px;
     }
 
     .intellibrite-btn {
-      padding: 10px 18px;
+      padding: 5px 10px;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--bg-surface);
       color: var(--text-primary);
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.7rem;
       font-weight: 500;
       transition: all var(--transition-fast);
     }
@@ -757,13 +769,14 @@
     }
 
     .light-color-grid {
+
       display: flex;
-      gap: 12px;
+      gap: 8px;
     }
 
     .light-color-fab {
-      width: 48px;
-      height: 48px;
+      width: 28px;
+      height: 28px;
       border: 2px solid var(--border);
       border-radius: 50%;
       cursor: pointer;

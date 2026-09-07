@@ -82,17 +82,39 @@ e(
     ),
     e(
       "div",
-      { className: "light-section" },
-      e("h5", { className: "light-section-title" }, "Color Lights"),
+      { className: "light-section light-section-combined" },
       e(
         "div",
-        { className: "light-btn-grid" },
-        colorLightButtons.map(btn =>
-          e("button", {
-            key: btn.text,
-            className: "light-btn color-light-btn",
-            onClick: () => onLightCommand(lightId, btn.command),
-          }, btn.text)
+        { className: "light-sub-section" },
+        e("h5", { className: "light-section-title" }, "Color Lights"),
+        e(
+          "div",
+          { className: "light-btn-grid" },
+          colorLightButtons.map(btn =>
+            e("button", {
+              key: btn.text,
+              className: "light-btn color-light-btn",
+              onClick: () => onLightCommand(lightId, btn.command),
+            }, btn.text)
+          )
+        )
+      ),
+      e(
+        "div",
+        { className: "light-sub-section" },
+        e("h5", { className: "light-section-title" }, "Solid Colors"),
+        e(
+          "div",
+          { className: "light-color-grid" },
+          solidColorButtons.map(btn =>
+            e("button", {
+              key: btn.text,
+              className: "light-color-fab",
+              style: { backgroundColor: btn.color },
+              onClick: () => onLightCommand(lightId, btn.command),
+              "aria-label": btn.text,
+            })
+          )
         )
       )
     ),
@@ -109,24 +131,6 @@ e(
             className: "light-btn intellibrite-btn",
             onClick: () => onLightCommand(lightId, btn.command),
           }, btn.text)
-        )
-      )
-    ),
-    e(
-      "div",
-      { className: "light-section" },
-      e("h5", { className: "light-section-title" }, "Solid Colors"),
-      e(
-        "div",
-        { className: "light-color-grid" },
-        solidColorButtons.map(btn =>
-          e("button", {
-            key: btn.text,
-            className: "light-color-fab",
-            style: { backgroundColor: btn.color },
-            onClick: () => onLightCommand(lightId, btn.command),
-            "aria-label": btn.text,
-          })
         )
       )
     )
@@ -162,17 +166,12 @@ function BodyCard({ body, onCircuitToggle, onHeaterChange, onHeatModeChange, onB
         }, pending ? "..." : isOn ? "On" : "Off")
       )
     ),
-    circuits && circuits.length > 0 &&
-      e(
-        "div",
-        { className: "circuits-section" },
-        e("div", { className: "section-label" }, "Circuits"),
+circuits && circuits.length > 0 &&
         e(
           "div",
           { className: "circuits-list" },
           circuits.map((circuit) => e(CircuitToggle, { circuit, onToggle: onCircuitToggle, bodyIndex: index }))
-        )
-      ),
+        ),
     e(
       "div",
       { className: "heater-section" },
@@ -538,7 +537,7 @@ const App = () => {
           return {
             ...body,
             circuits: body.circuits.map((c) => {
-              const serverCircuit = state.circuitArray && state.circuitArray[c.id];
+              const serverCircuit = state.circuitArray && state.circuitArray.find((sc) => sc.id === c.id);
               return serverCircuit ? { ...c, state: serverCircuit.state || false, color: serverCircuit.colorSet } : c;
             }),
           };
@@ -551,7 +550,7 @@ const App = () => {
         if (bodyIndex === -1) {
           setFeatures((prev) =>
             prev.map((c) => {
-              const serverCircuit = state.circuitArray && state.circuitArray[c.id];
+              const serverCircuit = state.circuitArray && state.circuitArray.find((sc) => sc.id === c.id);
               return serverCircuit ? { ...c, state: serverCircuit.state || false, color: serverCircuit.colorSet } : c;
             })
           );
@@ -562,7 +561,7 @@ const App = () => {
               return {
                 ...body,
                 circuits: body.circuits.map((c) => {
-                  const serverCircuit = state.circuitArray && state.circuitArray[c.id];
+                  const serverCircuit = state.circuitArray && state.circuitArray.find((sc) => sc.id === c.id);
                   return serverCircuit ? { ...c, state: serverCircuit.state || false, color: serverCircuit.colorSet } : c;
                 }),
               };
