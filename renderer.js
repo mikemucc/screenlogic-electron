@@ -267,6 +267,8 @@ const App = () => {
 
   const configRef = useRef(null);
   const controllerConfigRef = useRef(null);
+  const bodiesRef = useRef([]);
+  const featuresRef = useRef([]);
   const mountedRef = useRef(true);
 
   const getHeatModes = useCallback((cfg) => {
@@ -388,6 +390,8 @@ const App = () => {
       setBodies(bodiesData);
       setLights(lightsData);
       setFeatures(featuresData);
+      bodiesRef.current = bodiesData;
+      featuresRef.current = featuresData;
       setOutsideTemp(state.airTemp ?? null);
       setError(null);
       setDebugInfo("");
@@ -399,6 +403,14 @@ const App = () => {
       setLoading(false);
     }
   }, [getHeatModes]);
+
+  useEffect(() => {
+    bodiesRef.current = bodies;
+  }, [bodies]);
+
+  useEffect(() => {
+    featuresRef.current = features;
+  }, [features]);
 
   const initializeConnection = useCallback(async () => {
     setLoading(true);
@@ -498,76 +510,82 @@ const App = () => {
   }, [initializeConnection]);
 
   const handleCircuitToggle = useCallback(async (circuitId, bodyIndex) => {
-    try {
-      if (bodyIndex === -1) {
-        let newState = false;
-        setFeatures((prev) => {
-          const circuit = prev.find((c) => c.id === circuitId);
-          if (circuit) newState = !circuit.state;
-          return prev.map((c) => c.id === circuitId ? { ...c, state: newState } : c);
-        });
-        await window.screenlogic.setCircuitState(circuitId, newState, 0);
-        return;
-      }
+    const currentFeatures = featuresRef.current;
+    const currentBodies = bodiesRef.current;
 
-      let newState = false;
+    let newState = false;
+    if (bodyIndex === -1) {
+      const circuit = currentFeatures.find((c) => c.id === circuitId);
+      newState = circuit ? !circuit.state : false;
+      setFeatures((prev) =>
+        prev.map((c) => c.id === circuitId ? { ...c, state: newState } : c)
+      );
+    } else {
+      const body = currentBodies[bodyIndex];
+      const circuit = body && body.circuits.find((c) => c.id === circuitId);
+      newState = circuit ? !circuit.state : false;
       setBodies((prev) =>
-        prev.map((body, idx) => {
-          if (idx !== bodyIndex) return body;
-          const circuit = body.circuits.find((c) => c.id === circuitId);
-          if (circuit) {
-            newState = !circuit.state;
-            return {
-              ...body,
-              circuits: body.circuits.map((c) => c.id === circuitId ? { ...c, state: newState } : c),
-            };
-          }
-          return body;
+        prev.map((b, idx) => {
+          if (idx !== bodyIndex) return b;
+          return {
+            ...b,
+            circuits: b.circuits.map((c) => c.id === circuitId ? { ...c, state: newState } : c),
+          };
         })
       );
+    }
 
+    try {
       await window.screenlogic.setCircuitState(circuitId, newState, 0);
 
       const state = await window.screenlogic.getEquipmentState(0);
       if (!state || !state.circuitArray) return;
 
-      setBodies((prev) =>
-        prev.map((body, idx) => {
-          if (idx !== bodyIndex) return body;
-          return {
-            ...body,
-            circuits: body.circuits.map((c) => {
-              const serverCircuit = state.circuitArray && state.circuitArray.find((sc) => sc.id === c.id);
-              return serverCircuit ? { ...c, state: serverCircuit.state || false, color: serverCircuit.colorSet } : c;
-            }),
-          };
-        })
-      );
+      if (bodyIndex === -1) {
+        setFeatures((prev) =>
+          prev.map((c) => {
+            const serverCircuit = state.circuitArray.find((sc) => sc.id === c.id);
+            return serverCircuit ? { ...c, state: !!serverCircuit.state, color: serverCircuit.colorSet } : c;
+          })
+        );
+      } else {
+        setBodies((prev) =>
+          prev.map((body, idx) => {
+            if (idx !== bodyIndex) return body;
+            return {
+              ...body,
+              circuits: body.circuits.map((c) => {
+                const serverCircuit = state.circuitArray.find((sc) => sc.id === c.id);
+                return serverCircuit ? { ...c, state: !!serverCircuit.state, color: serverCircuit.colorSet } : c;
+              }),
+            };
+          })
+        );
+      }
     } catch (err) {
       console.error("Error toggling circuit:", err);
       const state = await window.screenlogic.getEquipmentState(0).catch(() => null);
-      if (state) {
-        if (bodyIndex === -1) {
-          setFeatures((prev) =>
-            prev.map((c) => {
-              const serverCircuit = state.circuitArray && state.circuitArray.find((sc) => sc.id === c.id);
-              return serverCircuit ? { ...c, state: serverCircuit.state || false, color: serverCircuit.colorSet } : c;
-            })
-          );
-        } else {
-          setBodies((prev) =>
-            prev.map((body, idx) => {
-              if (idx !== bodyIndex) return body;
-              return {
-                ...body,
-                circuits: body.circuits.map((c) => {
-                  const serverCircuit = state.circuitArray && state.circuitArray.find((sc) => sc.id === c.id);
-                  return serverCircuit ? { ...c, state: serverCircuit.state || false, color: serverCircuit.colorSet } : c;
-                }),
-              };
-            })
-          );
-        }
+      if (!state) return;
+      if (bodyIndex === -1) {
+        setFeatures((prev) =>
+          prev.map((c) => {
+            const serverCircuit = state.circuitArray.find((sc) => sc.id === c.id);
+            return serverCircuit ? { ...c, state: !!serverCircuit.state, color: serverCircuit.colorSet } : c;
+          })
+        );
+      } else {
+        setBodies((prev) =>
+          prev.map((body, idx) => {
+            if (idx !== bodyIndex) return body;
+            return {
+              ...body,
+              circuits: body.circuits.map((c) => {
+                const serverCircuit = state.circuitArray.find((sc) => sc.id === c.id);
+                return serverCircuit ? { ...c, state: !!serverCircuit.state, color: serverCircuit.colorSet } : c;
+              }),
+            };
+          })
+        );
       }
     }
   }, []);
@@ -628,6 +646,7 @@ const App = () => {
   }, []);
 
   const handleBodyToggle = useCallback(async (bodyIndex, isOn) => {
+    const currentBodies = bodiesRef.current;
     try {
       if (!isOn) {
         setBodies((prev) =>
@@ -635,7 +654,7 @@ const App = () => {
             idx === bodyIndex ? { ...body, isOn: false, pending: true } : body
           )
         );
-        const body = bodies[bodyIndex];
+        const body = currentBodies[bodyIndex];
         if (body && body.circuitData) {
           try {
             await window.screenlogic.setCircuitState(body.circuitData.id, 0, 0);
@@ -652,7 +671,7 @@ const App = () => {
         return;
       }
 
-      const body = bodies[bodyIndex];
+      const body = currentBodies[bodyIndex];
       if (!body || !body.circuitData) {
         console.warn(`No circuitData for body ${bodyIndex}`);
         return;
@@ -679,7 +698,7 @@ const App = () => {
       await new Promise((r) => setTimeout(r, 1000));
 
       const otherIdx = bodyIndex === 0 ? 1 : 0;
-      const otherBody = bodies[otherIdx];
+      const otherBody = currentBodies[otherIdx];
 
       if (otherBody && otherBody.isOn && otherBody.circuitData) {
         try {
@@ -697,7 +716,7 @@ const App = () => {
     } catch (err) {
       console.error("Error toggling body:", err);
     }
-  }, [bodies]);
+  }, []);
 
     if (loading) {
     return e("div", { className: "app-shell" }, e(LoadingView, { message: debugInfo }));
