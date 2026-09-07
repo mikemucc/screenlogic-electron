@@ -833,15 +833,22 @@
     }
 
     .intellibrite-btn {
-      padding: 5px 10px;
+      padding: 8px 12px;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--bg-surface);
       color: var(--text-primary);
       cursor: pointer;
-      font-size: 0.7rem;
-      font-weight: 500;
+      font-size: 0.72rem;
+      font-weight: 600;
       transition: all var(--transition-fast);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .light-section:has(.intellibrite-btn) .light-btn-grid {
+      flex-wrap: nowrap;
+      overflow-x: visible;
     }
 
     .intellibrite-btn:hover {
