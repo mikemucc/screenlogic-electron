@@ -20,9 +20,9 @@
     "test": "jest --runInBand && node -e \"require('child_process').execSync('node --check renderer.js && node --check main.js && node --check preload.js && node --check scripts/generate-preload.js', {stdio:'inherit'})\"",
     "generate-preload": "node scripts/generate-preload.js",
     "package": "electron-builder",
-    "package:mac": "electron-builder --mac",
-    "package:win": "electron-builder --win",
-    "package:linux": "electron-builder --linux"
+    "package:mac": "electron-builder --mac --publish never",
+    "package:win": "electron-builder --win --publish never",
+    "package:linux": "electron-builder --linux --publish never"
   },
   "dependencies": {
     "node-screenlogic": "^2.1.1",
