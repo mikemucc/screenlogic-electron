@@ -1,6 +1,6 @@
 {
   "name": "screenlogic-electron",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "An attempt to build an electron based frontend for the screenlogic",
   "homepage": "https://github.com/mikemucc/screenlogic-electron#readme",
   "bugs": {
@@ -41,7 +41,8 @@
       "main.js",
       "preload.js",
       "renderer.js",
-      "index.html"
+      "index.html",
+      "src/**/*"
     ],
     "directories": {
       "buildResources": "build",
