@@ -30,4 +30,4 @@ jobs:
         run: npm ci
 
       - name: Verify tests run
-        run: npm test -- --listTests
+        run: npx jest --listTests
