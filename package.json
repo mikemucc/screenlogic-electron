@@ -11,7 +11,7 @@
     "url": "git+https://github.com/mikemucc/screenlogic-electron.git"
   },
   "license": "ISC",
-  "author": "",
+  "author": "Michael Mucciarone <mikemucc@users.noreply.github.com>",
   "type": "commonjs",
   "main": "main.js",
   "scripts": {
