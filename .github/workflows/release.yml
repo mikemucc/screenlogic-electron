@@ -84,7 +84,7 @@ jobs:
             dist/*.deb
             dist/*.exe
             dist/*.blockmap
-            dist/*.yml
+            dist/latest*.yml
           if-no-files-found: error
 
   release:
