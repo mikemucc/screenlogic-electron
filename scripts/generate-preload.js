@@ -3,7 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const preloadPath = path.join(__dirname, '..', 'preload.js');
+const preloadPath = process.env.PRELOAD_PATH
+  ? path.resolve(process.env.PRELOAD_PATH)
+  : path.join(__dirname, '..', 'preload.js');
 
 const sigs = {
   discover: 'timeout',
@@ -54,6 +56,14 @@ const sigs = {
   setIntellichlorIsActive: 'isActive, senderId',
 };
 
+const subscriptions = [
+  {
+    name: 'onEquipmentStateUpdate',
+    subscribeChannel: 'screenlogic:subscribeEquipmentState',
+    eventChannel: 'screenlogic:equipmentStateUpdate',
+  },
+];
+
 const handlerNames = Object.keys(sigs);
 
 let preload = "'use strict';\n\n";
@@ -68,7 +78,16 @@ for (const name of handlerNames) {
   preload += `  ${name}: (${params}) => invoke('screenlogic:${name}'${invokeArgs}),\n`;
 }
 
+for (const sub of subscriptions) {
+  preload += `  ${sub.name}: (callback) => {\n`;
+  preload += `    const handler = (event, state) => callback(state);\n`;
+  preload += `    ipcRenderer.on('${sub.eventChannel}', handler);\n`;
+  preload += `    ipcRenderer.send('${sub.subscribeChannel}');\n`;
+  preload += `    return () => ipcRenderer.removeListener('${sub.eventChannel}', handler);\n`;
+  preload += `  },\n`;
+}
+
 preload += "});\n";
 
 fs.writeFileSync(preloadPath, preload);
-console.log(`Generated preload.js with ${handlerNames.length} handlers`);
+console.log(`Generated preload.js with ${handlerNames.length} handlers and ${subscriptions.length} subscriptions`);

@@ -507,7 +507,7 @@ const App = () => {
     mountedRef.current = true;
     initializeConnection();
 
-    const unsubscribe = window.screenlogic.onEquipmentStateUpdate((state) => {
+    const unsubscribe = window.screenlogic.onEquipmentStateUpdate?.((state) => {
       if (!state || !mountedRef.current) return;
       if (state.freezeMode !== undefined) setFreezeMode(state.freezeMode);
       if (state.airTemp !== undefined) setOutsideTemp(state.airTemp ?? null);
@@ -568,7 +568,7 @@ const App = () => {
 
     return () => {
       mountedRef.current = false;
-      unsubscribe();
+      unsubscribe?.();
     };
   }, [initializeConnection, cleanerId]);
 
