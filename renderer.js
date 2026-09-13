@@ -426,7 +426,11 @@ const App = () => {
     try {
       const status = await window.screenlogic.getPumpStatus(1, 0);
       if (!mountedRef.current) return;
-      setPump(status);
+      const running = status.pumpRPMs > 0;
+      setPump({
+        ...status,
+        pumpGPMs: running ? status.pumpGPMs : 0,
+      });
     } catch (err) {
       console.error("Error loading pump status:", err);
     }
@@ -460,6 +464,12 @@ const App = () => {
       await window.screenlogic.initUnit(unit);
       await window.screenlogic.connect();
       setConnected(true);
+
+      try {
+        await window.screenlogic.addClient();
+      } catch (err) {
+        console.warn("Could not register for controller updates:", err);
+      }
 
       setDebugInfo("Loading equipment data\u2026");
 
