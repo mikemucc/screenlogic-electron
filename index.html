@@ -366,6 +366,19 @@
       flex-shrink: 0;
     }
 
+    .heater-running-indicator {
+      font-size: 1.8rem;
+      line-height: 1;
+      flex-shrink: 0;
+      margin-left: auto;
+      animation: heater-pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes heater-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.08); }
+    }
+
     .body-info {
       flex: 1;
       display: flex;

@@ -155,6 +155,7 @@ function BodyCard({ body, onCircuitToggle, onHeaterChange, onHeatModeChange, onB
         e("h3", { className: "body-name" }, name),
         e("span", { className: "body-temp-inline" }, temp ? `${(Math.round(temp * 10) / 10).toFixed(1)}\u00B0F` : "--\u00B0F")
       ),
+      isHeating && e("div", { className: "heater-running-indicator", title: "Heater running" }, "\u{1F525}"),
       e(
         "div",
         { className: "body-status" },
@@ -278,22 +279,59 @@ const App = () => {
   const featuresRef = useRef([]);
   const mountedRef = useRef(true);
 
-  const getHeatModes = useCallback((cfg) => {
-    const defaultModes = [{ value: 0, name: "Off" }, { value: 1, name: "Heat" }];
-    if (!cfg || !cfg.heaterConfig) {
-      return defaultModes;
+  const getHeatModes = useCallback((cfg, stateHeaterConfig) => {
+    const hcConfig = cfg && cfg.heaterConfig ? cfg.heaterConfig : null;
+    const hcState = stateHeaterConfig || null;
+    const hc = hcConfig || hcState || null;
+    if (!hc) {
+      return [{ value: 0, name: "Off" }];
     }
 
-    const hc = cfg.heaterConfig;
+    console.log("HEATER DEBUG hcConfig:", hcConfig);
+    console.log("HEATER DEBUG hcState:", hcState);
+
     const modes = [{ value: 0, name: "Off" }];
 
-    if (hc.gasHeaterPresent) modes.push({ value: 1, name: "Gas" });
-    if (hc.heatPumpPresent) modes.push({ value: 2, name: "Pump" });
-    if (hc.solarHeatPumpPresent || hc.body1SolarPresent || hc.body0SolarPresent) {
-      modes.push({ value: 3, name: "Solar" });
+    const hasSolar = !!(
+      (hcConfig && (hcConfig.body1SolarPresent || hcConfig.body2SolarPresent)) ||
+      (hcState && (hcState.body1SolarPresent || hcState.body2SolarPresent))
+    );
+    const hasSolarHeatPumpCfg = !!(hcConfig && hcConfig.solarHeatPumpPresent);
+    const hasSolarHeatPumpState = !!(hcState && (hcState.solarHeatPumpPresent || hcState.body1HeatPumpPresent || hcState.body2HeatPumpPresent));
+    const hasHeatPump = !!(
+      (hcConfig && (hcConfig.solarHeatPumpPresent || hcConfig.body1HeatPumpPresent || hcConfig.body2HeatPumpPresent || hcConfig.thermaFloPresent || hcConfig.thermaFloCoolPresent)) ||
+      (hcState && (hcState.solarHeatPumpPresent || hcState.body1HeatPumpPresent || hcState.body2HeatPumpPresent || hcState.thermaFloPresent || hcState.thermaFloCoolPresent))
+    );
+    const forceHeatPump = hasHeatPump || hasSolarHeatPumpCfg || hasSolarHeatPumpState;
+    console.log("HEATER DEBUG flags:", { hasSolar, hasSolarHeatPumpCfg, hasSolarHeatPumpState, hasHeatPump });
+
+    if (forceHeatPump) {
+      if (hasSolar || hasSolarHeatPumpCfg || hasSolarHeatPumpState) {
+        if (!modes.find((m) => m.value === 1)) modes.push({ value: 1, name: "Solar" });
+      }
+      if (hasSolarHeatPumpCfg || hasSolarHeatPumpState) {
+        if (!modes.find((m) => m.value === 2)) modes.push({ value: 2, name: "Solar Preferred" });
+      }
+      if (!modes.find((m) => m.value === 3)) modes.push({ value: 3, name: "Heater" });
+    } else if (hasSolar) {
+      if (!modes.find((m) => m.value === 1)) modes.push({ value: 1, name: "Solar" });
+    } else {
+      // If heater config exists but no explicit flags match, still allow Heater as fallback
+      if (!modes.find((m) => m.value === 3)) modes.push({ value: 3, name: "Heater" });
     }
 
-    return modes.length > 1 ? modes : defaultModes;
+    if (modes.length === 1) {
+      return [{ value: 0, name: "Off" }];
+    }
+    const seen = new Set();
+    const unique = [];
+    for (const m of modes) {
+      if (!seen.has(m.value)) {
+        seen.add(m.value);
+        unique.push(m);
+      }
+    }
+    return unique;
   }, []);
 
   const loadEquipmentData = useCallback(async (cfg) => {
@@ -304,7 +342,7 @@ const App = () => {
         throw new Error("Missing state data from controller");
       }
 
-      const heatModes = getHeatModes(cfg);
+      const heatModes = getHeatModes(cfg, state.heaterConfig);
 
       const equipConfig = configRef.current;
       const controllerConfig = controllerConfigRef.current;
@@ -331,13 +369,18 @@ const App = () => {
       }
 
       const bodiesData = state.bodies.map((body, idx) => {
-        const isHeating = body.setPoint > body.currentTemp && body.heatMode > 0;
+        const validHeatModes = heatModes.map((m) => m.value);
+        let hm = body.heatMode || 0;
+        if (hm !== 0 && !validHeatModes.includes(hm)) {
+          hm = 0;
+        }
+        const isHeating = hm > 0 && (body.setPoint || 80) > (body.currentTemp || 0);
         return {
           index: idx,
           name: idx === 0 ? "Pool" : "Spa",
           temp: body.currentTemp || 0,
           setPoint: body.setPoint || 80,
-          heatMode: body.heatMode || 0,
+          heatMode: hm,
           isHeating,
           isOn: idx === 0,
           pending: false,
@@ -515,10 +558,16 @@ const App = () => {
 
       setBodies((prev) => {
         if (!prev.length) return prev;
+        const heatModes = getHeatModes(configRef.current, state.heaterConfig);
+        const validHeatModes = heatModes.map((m) => m.value);
         return prev.map((body, idx) => {
           const serverBody = state.bodies[idx];
           if (!serverBody) return body;
-          const isHeating = serverBody.setPoint > serverBody.currentTemp && serverBody.heatMode > 0;
+          let hm = serverBody.heatMode || 0;
+          if (hm !== 0 && !validHeatModes.includes(hm)) {
+            hm = 0;
+          }
+          const isHeating = hm > 0 && (serverBody.setPoint || body.setPoint || 80) > (serverBody.currentTemp || body.temp || 0);
           const circuitData = body.circuitData;
           const isOn = circuitData
             ? !!state.circuitArray?.find((c) => c.id === circuitData.id)?.state
@@ -527,10 +576,11 @@ const App = () => {
             ...body,
             temp: serverBody.currentTemp || body.temp,
             setPoint: serverBody.setPoint || body.setPoint,
-            heatMode: serverBody.heatMode || body.heatMode,
+            heatMode: hm,
             isHeating,
             isOn,
             pending: false,
+            heatModes,
           };
         });
       });
