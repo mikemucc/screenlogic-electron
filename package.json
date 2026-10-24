@@ -22,7 +22,8 @@
     "package": "electron-builder",
     "package:mac": "electron-builder --mac --publish never",
     "package:win": "electron-builder --win --publish never",
-    "package:linux": "electron-builder --linux --publish never"
+    "package:linux": "electron-builder --linux --publish never",
+    "release": "node scripts/release.js"
   },
   "dependencies": {
     "node-screenlogic": "^2.1.1",
