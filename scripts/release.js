@@ -18,7 +18,7 @@ try {
   execSync('git add package.json', { stdio: 'inherit' });
   execSync(`git commit -m "chore: bump version to ${newVersion}"`, { stdio: 'inherit' });
   execSync(`git tag ${tag}`, { stdio: 'inherit' });
-  execSync(`git push origin main`, { stdio: 'inherit' });
+  execSync(`git push origin master`, { stdio: 'inherit' });
   execSync(`git push origin ${tag}`, { stdio: 'inherit' });
   console.log(`Released ${tag}`);
 } catch (e) {
