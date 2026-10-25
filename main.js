@@ -11,12 +11,14 @@ function createWindow() {
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
+      contextIsolation: false,
+      nodeIntegration: true,
+      sandbox: false,
     },
   });
 
   win.loadFile(path.join(__dirname, 'index.html'));
+  win.on('closed', () => app.quit());
 
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools({ mode: 'detach' });

@@ -7,87 +7,64 @@ const preloadPath = process.env.PRELOAD_PATH
   ? path.resolve(process.env.PRELOAD_PATH)
   : path.join(__dirname, '..', 'preload.js');
 
-const sigs = {
-  discover: 'timeout',
-  closeFinder: '',
-  remoteLogin: 'systemName',
-  closeRemoteLogin: '',
-  initUnit: 'server',
-  initConnection: 'systemName, address, port, password, senderId',
-  connect: '',
-  close: '',
-  addClient: 'clientId, senderId',
-  removeClient: 'clientId, senderId',
-  getVersion: 'senderId',
-  pingServer: 'senderId',
-  reconnect: '',
-  status: '',
-  getSystemTime: 'senderId',
-  setSystemTime: 'date, adjustForDST, senderId',
-  getWeatherForecast: 'senderId',
-  getHistoryData: 'fromTime, toTime, senderId',
-  getAllCircuitNames: 'senderId',
-  getNCircuitNames: 'senderId',
-  getCircuitNames: 'size, senderId',
-  getCircuitDefinitions: 'senderId',
-  getEquipmentConfiguration: 'senderId',
-  getEquipmentState: 'senderId',
-  getCustomNames: 'senderId',
-  setCustomName: 'idx, name, senderId',
-  cancelDelay: 'senderId',
-  getControllerConfig: 'senderId',
-  sendLightCommand: 'command, senderId',
-  setCircuitRuntimeById: 'circuitId, runTime, senderId',
-  setCircuit: 'circuitId, nameIndex, circuitFunction, circuitInterface, freeze, colorPos, senderId',
-  setCircuitState: 'circuitId, state, senderId',
-  setSetPoint: 'bodyIndex, temperature, senderId',
-  setCoolSetPoint: 'bodyIndex, temperature, senderId',
-  setHeatMode: 'bodyIndex, heatMode, senderId',
-  setPumpSpeed: 'pumpId, circuitId, speed, isRPMs, senderId',
-  getPumpStatus: 'pumpId, senderId',
-  setScheduleEventById: 'scheduleId, circuitId, startTime, stopTime, dayMask, flags, heatCmd, heatSetPoint, senderId',
-  addNewScheduleEvent: 'scheduleType, senderId',
-  deleteScheduleEventById: 'scheduleId, senderId',
-  getScheduleData: 'scheduleType, senderId',
-  getChemHistoryData: 'fromTime, toTime, senderId',
-  getChemicalData: 'senderId',
-  getIntellichlorConfig: 'senderId',
-  setIntellichlorOutput: 'poolOutput, spaOutput, senderId',
-  setIntellichlorIsActive: 'isActive, senderId',
-};
-
-const subscriptions = [
-  {
-    name: 'onEquipmentStateUpdate',
-    subscribeChannel: 'screenlogic:subscribeEquipmentState',
-    eventChannel: 'screenlogic:equipmentStateUpdate',
-  },
-];
-
-const handlerNames = Object.keys(sigs);
-
 let preload = "'use strict';\n\n";
-preload += "const { contextBridge, ipcRenderer } = require('electron');\n\n";
+preload += "const { ipcRenderer } = require('electron');\n";
+preload += "const screenlogicService = require('./src/screenlogic-service');\n\n";
 preload += "const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);\n\n";
-preload += "contextBridge.exposeInMainWorld('screenlogic', {\n";
-
-for (const name of handlerNames) {
-  const sig = sigs[name];
-  const params = sig || '';
-  const invokeArgs = sig ? `, ${sig}` : '';
-  preload += `  ${name}: (${params}) => invoke('screenlogic:${name}'${invokeArgs}),\n`;
-}
-
-for (const sub of subscriptions) {
-  preload += `  ${sub.name}: (callback) => {\n`;
-  preload += `    const handler = (event, state) => callback(state);\n`;
-  preload += `    ipcRenderer.on('${sub.eventChannel}', handler);\n`;
-  preload += `    ipcRenderer.send('${sub.subscribeChannel}');\n`;
-  preload += `    return () => ipcRenderer.removeListener('${sub.eventChannel}', handler);\n`;
-  preload += `  },\n`;
-}
-
-preload += "});\n";
+preload += "// Map renderer's expected IPC API names to screenlogicService functions\n";
+preload += "window.screenlogic = {\n";
+preload += "  discover: screenlogicService.findLocalUnits,\n";
+preload += "  closeFinder: screenlogicService.closeFinder,\n";
+preload += "  remoteLogin: screenlogicService.remoteLogin,\n";
+preload += "  closeRemoteLogin: screenlogicService.closeRemoteLogin,\n";
+preload += "  initUnit: screenlogicService.initWithUnit,\n";
+preload += "  initConnection: screenlogicService.initConnection,\n";
+preload += "  connect: screenlogicService.connect,\n";
+preload += "  close: screenlogicService.close,\n";
+preload += "  addClient: screenlogicService.addClient,\n";
+preload += "  removeClient: screenlogicService.removeClient,\n";
+preload += "  getVersion: screenlogicService.getVersion,\n";
+preload += "  pingServer: screenlogicService.pingServer,\n";
+preload += "  reconnect: screenlogicService.reconnect,\n";
+preload += "  status: screenlogicService.status,\n";
+preload += "  getSystemTime: screenlogicService.getSystemTime,\n";
+preload += "  setSystemTime: screenlogicService.setSystemTime,\n";
+preload += "  getWeatherForecast: screenlogicService.getWeatherForecast,\n";
+preload += "  getHistoryData: screenlogicService.getHistoryData,\n";
+preload += "  getAllCircuitNames: screenlogicService.getAllCircuitNames,\n";
+preload += "  getNCircuitNames: screenlogicService.getNCircuitNames,\n";
+preload += "  getCircuitNames: screenlogicService.getCircuitNames,\n";
+preload += "  getCircuitDefinitions: screenlogicService.getCircuitDefinitions,\n";
+preload += "  getEquipmentConfiguration: screenlogicService.getEquipmentConfiguration,\n";
+preload += "  getEquipmentState: screenlogicService.getEquipmentState,\n";
+preload += "  getCustomNames: screenlogicService.getCustomNames,\n";
+preload += "  setCustomName: screenlogicService.setCustomName,\n";
+preload += "  cancelDelay: screenlogicService.cancelDelay,\n";
+preload += "  getControllerConfig: screenlogicService.getControllerConfig,\n";
+preload += "  sendLightCommand: screenlogicService.sendLightCommand,\n";
+preload += "  setCircuitRuntimeById: screenlogicService.setCircuitRuntimeById,\n";
+preload += "  setCircuit: screenlogicService.setCircuit,\n";
+preload += "  setCircuitState: screenlogicService.setCircuitState,\n";
+preload += "  setSetPoint: screenlogicService.setSetPoint,\n";
+preload += "  setCoolSetPoint: screenlogicService.setCoolSetPoint,\n";
+preload += "  setHeatMode: screenlogicService.setHeatMode,\n";
+preload += "  setPumpSpeed: screenlogicService.setPumpSpeed,\n";
+preload += "  getPumpStatus: screenlogicService.getPumpStatus,\n";
+preload += "  setScheduleEventById: screenlogicService.setScheduleEventById,\n";
+preload += "  addNewScheduleEvent: screenlogicService.addNewScheduleEvent,\n";
+preload += "  deleteScheduleEventById: screenlogicService.deleteScheduleEventById,\n";
+preload += "  getScheduleData: screenlogicService.getScheduleData,\n";
+preload += "  getChemHistoryData: screenlogicService.getChemHistoryData,\n";
+preload += "  getChemicalData: screenlogicService.getChemicalData,\n";
+preload += "  getIntellichlorConfig: screenlogicService.getIntellichlorConfig,\n";
+preload += "  setIntellichlorOutput: screenlogicService.setIntellichlorOutput,\n";
+preload += "  setIntellichlorIsActive: screenlogicService.setIntellichlorIsActive,\n";
+preload += "  onEquipmentStateUpdate: (callback) => {\n";
+preload += "    const listener = (state) => callback(state);\n";
+preload += "    screenlogicService.subscribeEquipmentState(listener);\n";
+preload += "    return () => screenlogicService.unsubscribeEquipmentState(listener);\n";
+preload += "  },\n";
+preload += "};\n";
 
 fs.writeFileSync(preloadPath, preload);
-console.log(`Generated preload.js with ${handlerNames.length} handlers and ${subscriptions.length} subscriptions`);
+console.log(`Generated preload.js with window.screenlogic service mapping`);
