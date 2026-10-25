@@ -1,7 +1,9 @@
 "use strict";
 
+const React = require('react');
 const { useEffect, useState, useRef, useCallback } = React;
 const e = React.createElement;
+const ReactDOM = require('react-dom/client');
 
 const POLL_INTERVAL_MS = 10000;
 const CLEANER_STANDBY_POLL_MS = 30000;
@@ -172,7 +174,7 @@ circuits && circuits.length > 0 &&
         e(
           "div",
           { className: "circuits-list" },
-          circuits.map((circuit) => e(CircuitToggle, { circuit, onToggle: onCircuitToggle, bodyIndex: index, isPending: circuit.id === pendingCircuitId }))
+          circuits.map((circuit) => e(CircuitToggle, { key: circuit.id, circuit, onToggle: onCircuitToggle, bodyIndex: index, isPending: circuit.id === pendingCircuitId }))
         ),
     e(
       "div",
@@ -1047,7 +1049,7 @@ const App = () => {
             ),
             e("div", { className: "circuits-section" },
               e("div", { className: "circuits-list" },
-                features.map((circuit) => e(CircuitToggle, { circuit, onToggle: handleCircuitToggle, bodyIndex: -1 }))
+                features.map((circuit) => e(CircuitToggle, { key: circuit.id, circuit, onToggle: handleCircuitToggle, bodyIndex: -1 }))
               )
             )
           )
@@ -1056,4 +1058,6 @@ const App = () => {
   );
 };
 
-ReactDOM.render(e(App), document.getElementById("root"));
+const container = document.getElementById('root');
+const root = ReactDOM.createRoot(container);
+try { root.render(e(App)); } catch (err) { console.error('Render error:', err); }
