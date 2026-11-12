@@ -8,8 +8,15 @@ An attempt to build an electron based frontend for the screenlogic.
 npm install
 npm run generate-preload   # regenerates preload.js (checked in)
 npm start                  # run the app
+npm run dev:mac            # run on macOS with development logging
 npm test                   # run tests
 ```
+
+On macOS, use `npm run start:mac` or `npm run dev:mac` instead of launching
+Electron directly from a terminal. macOS only grants Local Network access
+when LaunchServices starts the app; a terminal-spawned Electron can fail to
+connect to the controller with `connect EHOSTUNREACH`. If prompted, allow
+local network access for Electron.
 
 ## Packaging locally
 

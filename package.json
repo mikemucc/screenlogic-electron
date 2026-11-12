@@ -16,7 +16,9 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "start:mac": "open -n ./node_modules/electron/dist/Electron.app --args \"$PWD\"",
     "dev": "NODE_ENV=development electron .",
+    "dev:mac": "open -n --env NODE_ENV=development ./node_modules/electron/dist/Electron.app --args \"$PWD\"",
     "test": "jest --runInBand && node -e \"require('child_process').execSync('node --check renderer.js && node --check main.js && node --check preload.js && node --check scripts/generate-preload.js', {stdio:'inherit'})\"",
     "generate-preload": "node scripts/generate-preload.js",
     "package": "electron-builder",

@@ -1,5 +1,6 @@
 'use strict';
 
+const os = require('os');
 const ScreenLogic = require('node-screenlogic');
 const { FindUnits, RemoteLogin, screenlogic } = ScreenLogic;
 
@@ -7,9 +8,42 @@ let currentFinder = null;
 let currentRemoteLogin = null;
 let currentServer = null;
 
+function getBroadcastAddresses(interfaces = os.networkInterfaces()) {
+  const addresses = new Set();
+  for (const list of Object.values(interfaces)) {
+    for (const info of list || []) {
+      if (!info || info.family !== 'IPv4' || info.internal || !info.netmask) {
+        continue;
+      }
+      const octets = info.address.split('.').map(Number);
+      const mask = info.netmask.split('.').map(Number);
+      if (octets.length !== 4 || mask.length !== 4) {
+        continue;
+      }
+      addresses.add(octets.map((octet, i) => (octet & mask[i]) | (~mask[i] & 255)).join('.'));
+    }
+  }
+  return [...addresses];
+}
+
 async function findLocalUnits(searchTimeMs = 5000) {
   const finder = new FindUnits();
   currentFinder = finder;
+
+  // node-screenlogic only broadcasts to 255.255.255.255, which some
+  // controllers ignore. Also send to each interface's directed broadcast
+  // (e.g. 192.168.1.255) so units on those networks are detected.
+  const targets = ['255.255.255.255', ...getBroadcastAddresses()];
+  finder.sendServerBroadcast = function sendServerBroadcast() {
+    for (const target of targets) {
+      try {
+        this.finder.send(this.message, 0, this.message.length, 1444, target);
+      } catch (err) {
+        // Ignore interfaces that reject broadcast (e.g. VPN/down interfaces).
+      }
+    }
+  };
+
   try {
     return await finder.searchAsync(searchTimeMs);
   } finally {
@@ -236,6 +270,7 @@ function unsubscribeEquipmentState(callback) {
 }
 
 module.exports = {
+  getBroadcastAddresses,
   findLocalUnits,
   closeFinder,
   remoteLogin,

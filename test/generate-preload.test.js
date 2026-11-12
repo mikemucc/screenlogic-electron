@@ -21,7 +21,7 @@ describe('generate-preload', () => {
     expect(runGenerator()).toBe(fs.readFileSync(committedPreloadPath, 'utf8'));
   });
 
-  test('generated preload exposes window.screenlogic service', () => {
+  test('generated preload exposes window.screenlogic', () => {
     const generated = runGenerator();
     expect(generated).toContain('window.screenlogic');
   });
@@ -29,5 +29,18 @@ describe('generate-preload', () => {
   test('generated preload requires screenlogic-service', () => {
     const generated = runGenerator();
     expect(generated).toContain("require('./src/screenlogic-service')");
+  });
+
+  test('generated preload discovers and connects in the renderer process', () => {
+    const generated = runGenerator();
+    expect(generated).toContain('discover: screenlogicService.findLocalUnits');
+    expect(generated).toContain('connect: screenlogicService.connect');
+    expect(generated).not.toContain('ipcRenderer');
+  });
+
+  test('generated preload subscribes to equipment state updates', () => {
+    const generated = runGenerator();
+    expect(generated).toContain('screenlogicService.subscribeEquipmentState(listener)');
+    expect(generated).toContain('screenlogicService.unsubscribeEquipmentState(listener)');
   });
 });

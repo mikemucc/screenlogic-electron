@@ -27,6 +27,32 @@ describe('screenlogic service wrapper', () => {
     expect(result).toEqual([dummyUnit]);
   });
 
+  test('getBroadcastAddresses computes directed broadcast addresses', () => {
+    const result = service.getBroadcastAddresses({
+      en0: [{ family: 'IPv4', internal: false, address: '10.168.10.160', netmask: '255.255.255.0' }],
+      en1: [{ family: 'IPv4', internal: false, address: '172.16.5.4', netmask: '255.255.0.0' }],
+      lo0: [{ family: 'IPv4', internal: true, address: '127.0.0.1', netmask: '255.0.0.0' }],
+      en2: [{ family: 'IPv6', internal: false, address: 'fe80::1', netmask: 'ffff:ffff:ffff:ffff::' }],
+    });
+    expect(result).toEqual(['10.168.10.255', '172.16.255.255']);
+  });
+
+  test('findLocalUnits broadcasts to limited and directed broadcast addresses', async () => {
+    const send = jest.fn();
+    jest.spyOn(ScreenLogic.FindUnits.prototype, 'searchAsync').mockImplementation(function () {
+      this.finder.send = send;
+      this.sendServerBroadcast();
+      return Promise.resolve([]);
+    });
+
+    await service.findLocalUnits(1);
+
+    const targets = send.mock.calls.map((call) => call[4]);
+    expect(targets).toContain('255.255.255.255');
+    expect(targets.length).toBeGreaterThan(1);
+    expect(send.mock.calls[0].slice(0, 4)).toEqual([expect.any(Buffer), 0, 8, 1444]);
+  });
+
   test('closeFinder returns false after auto-closing finder', async () => {
     const closeSpy = jest.spyOn(ScreenLogic.FindUnits.prototype, 'close');
     await service.findLocalUnits(1);

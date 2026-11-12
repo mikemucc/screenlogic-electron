@@ -1,11 +1,10 @@
 'use strict';
 
-const { ipcRenderer } = require('electron');
 const screenlogicService = require('./src/screenlogic-service');
 
-const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
-
-// Map renderer's expected IPC API names to screenlogicService functions
+// Expose the ScreenLogic service directly to the renderer. Discovery,
+// connection, polling, and schedule management all run in the renderer,
+// which is the path that finds local controllers on macOS.
 window.screenlogic = {
   discover: screenlogicService.findLocalUnits,
   closeFinder: screenlogicService.closeFinder,
